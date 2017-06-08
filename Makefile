@@ -2,7 +2,7 @@
 #include /save/alegarra/f90-05/Makeinit_debug
 #include ./Makeinit_debug
 include ./Makeinit
-prog=vrr
+prog=fifteen
 
 dir=./libs
 

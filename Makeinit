@@ -1,0 +1,7 @@
+f90=ifort
+optf90= -O3 -heap-arrays -vec-report0 -static #-mcmodel medium -shared-intel # -traceback
+
+#optf90= 
+optf77= -O3 -heap-arrays -vec-report0 #-mcmodel medium -shared-intel # -traceback 
+#optf77=
+optdir=-I

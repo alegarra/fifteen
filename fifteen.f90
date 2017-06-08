@@ -29,6 +29,7 @@
 ! all for a subset of animals a,d their combinations defined in another file
 ! A Legarra, 7/8/2012, get/addmAsp functions from I Aguilar, hash functions from blupf90 & F Guillaume, 
 ! phi functions from Karigl 1981
+! psi functions from Garcia-Cortes 2015
 ! modified to compute probabilities of being .not. IBD (i.e. heterogeneous) 6 jun 2017
 
 
@@ -37,11 +38,11 @@ use kinds; use sparsem
 implicit none
 INTEGER, PARAMETER :: dp = SELECTED_REAL_KIND(15, 307) !=real(8) con DVF
 integer:: nanim,nsubset !=20 !22 !19 !14
-integer:: nele
+integer:: nele,nmf,ngam
 integer,allocatable:: ped(:,:),subset(:),pedgam(:,:)
 integer:: i,j,k,l,ii,jj,kk,t,io
 integer::s1,s2,d1,d2
-real(dp),allocatable:: F(:)
+real(dp),allocatable:: F(:),gamma(:,:)
 real(dp):: delta(15),val,bigF(4)
 real(dp):: lhs(9,9),rhs(9),delta9(9),delta15(15),rhs15(15)
 real(dp),allocatable:: vara(:,:),vara4d(:,:,:,:)
@@ -50,7 +51,7 @@ logical:: use_hash(4)=.true.
 integer(i16):: iab,iabc,iabpcd,iabcd
 
 !type(sparse_hashm) :: phiab,phiabc,phiabcd,phiabpcd ! phi2, phi3, phi4, phi22
-type(sparse_hashm) :: phiab,phiabc,phiabcd,phiabpcd ! phi2, phi3, phi4, phi22
+type(sparse_hashm) :: psiab,psiabc,psiabcd,psiabpcd ! psi2, psi3, psi4, psi22
 ! REPLACE PHI BY PSI
 ! rule: psi(a,a)=1; psi(0,0)=gamma
  ----
@@ -68,23 +69,58 @@ read *,pedfile
 open(unit=1,file=pedfile,status='old')
 !open(unit=4,file=adjustl(trim(pedfile))//'_results',status='replace')
 nanim=0
+ngam=nanim*2
+nmf=0
 do
-        read(1,*,iostat=io)i
+        read(1,*,iostat=io)i,j,k
         if(io/=0) exit
         nanim=nanim+1
+        if(j==0) nmf=nmf+1
 enddo        
 rewind(1)
-print *,'nanim= ',nanim; nele=nanim
-allocate(F(0:nanim),ped(nanim,3))
-call zerom(phiab,nanim,nele)
-call zerom(phiabc,nanim,nele)
-call zerom(phiabcd,nanim,nele)
-call zerom(phiabpcd,nanim,nele)
+print *,'nanim= ',nanim
+print *,'number of gametes= ',ngam
+print *,'nmf= ',nmf
+nele=ngam
+allocate(F(nanim),ped(nanim,3),pedgam(ngam,3))
+call zerom(psiab,ngam,nele)
+call zerom(psiabc,ngam,nele)
+call zerom(psiabcd,ngam,nele)
+call zerom(psiabpcd,ngam,nele)
 
 do i=1,nanim
         read(1,*)ped(i,:)
 enddo
+rewind(1)
+do i=1,nmf
+    read(1,*)ped(i,:),gamma(i,:)
+enddo
 close(1)
+
+! create gametic pedigree from animal pedigree
+pedgam()=0
+k=0
+do i=1,nanim
+        ! paternal gamete
+        k=k+1
+        pedgam(k,1)=k
+        ! flag sire
+        sire=ped(i,2)
+        ! expand sire to two gametes corresponding to the sire
+        pedgam(k,2)=anim2gam(sire,1)
+        pedgam(k,3)=anim2gam(sire,2)
+        ! maternal gamete
+        k=k+1
+        pedgam(k,1)=k
+        ! flag dam
+        dam=ped(i,3)
+        ! expand sire to two gametes corresponding to the sire
+        pedgam(k,2)=anim2gam(dam,1)
+        pedgam(k,3)=anim2gam(dam,2)
+        print *,pedgam(k)
+enddo
+
+
 
 if(colleau) then
         F=0
@@ -764,6 +800,18 @@ end subroutine
      call cpu_time(seconds)
       end function
 
-end
+integer function anim2gam(animal,origin) !origin is 1,2 (paternal, maternal)
+    implicit none
+    integer::animal,origin
+    ani2gam=(animal-1)*2+origin
+    end function
 
+ function gam2anim(gamete) result(pair) ! on output animal, pair
+ implicit none
+ integer::gamete,pair(2)
+ pair(1)=gamete/2
+ pair(2)=gamete-2*pair(1)
+ end function
+
+end
 
