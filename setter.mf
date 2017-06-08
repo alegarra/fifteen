@@ -1,0 +1,21 @@
+1 0 0 0.2 metafounder
+2 1 1 Porto
+3 1 1 Old Moll
+4 2 3 Dash 1st
+5 2 3 Belle 1st
+6 4 5 Moll 2nd
+7 4 5 Pilot
+8 4 5 Cora 1st
+9 4 6 Peg
+10 7 6 Rock
+11 7 6 Regent
+12 7 6 Jet 1st
+13 9 10 Rock (a)
+14 11 12 Cora (Blair's)
+15 11 12 Rock 2nd
+16 13 6 Fred 1st
+17 8 16 Cora 2nd
+18 14 15 Sting
+19 14 15 Belle 2nd
+20 17 18 Dash 2nd
+21 16 19 Moll 3rd
