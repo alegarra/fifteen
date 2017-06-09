@@ -40,7 +40,7 @@ INTEGER, PARAMETER :: dp = SELECTED_REAL_KIND(15, 307) !=real(8) con DVF
 integer:: nanim,nsubset !=20 !22 !19 !14
 integer:: nele,nmf,ngam
 integer,allocatable:: ped(:,:),subset(:),pedgam(:,:)
-integer:: i,j,k,l,ii,jj,kk,t,io
+integer:: i,j,k,l,ii,jj,kk,t,io,sire,dam
 integer::s1,s2,d1,d2
 real(dp),allocatable:: F(:),gamma(:,:)
 real(dp):: delta(15),val,bigF(4)
@@ -51,10 +51,9 @@ logical:: use_hash(4)=.true.
 integer(i16):: iab,iabc,iabpcd,iabcd
 
 !type(sparse_hashm) :: phiab,phiabc,phiabcd,phiabpcd ! phi2, phi3, phi4, phi22
-type(sparse_hashm) :: psiab,psiabc,psiabcd,psiabpcd ! psi2, psi3, psi4, psi22
+type(sparse_hashm) :: phiab,phiabc,phiabcd,phiabpcd ! phi2, phi3, phi4, phi22
 ! REPLACE PHI BY PSI
 ! rule: psi(a,a)=1; psi(0,0)=gamma
- ----
 
 iab=0;iabc=0;iabpcd=0;iabcd=0
 print *,'pedfile?'
@@ -77,28 +76,29 @@ do
         nanim=nanim+1
         if(j==0) nmf=nmf+1
 enddo        
+ngam=nanim*2
 rewind(1)
 print *,'nanim= ',nanim
 print *,'number of gametes= ',ngam
 print *,'nmf= ',nmf
 nele=ngam
 allocate(F(nanim),ped(nanim,3),pedgam(ngam,3))
-call zerom(psiab,ngam,nele)
-call zerom(psiabc,ngam,nele)
-call zerom(psiabcd,ngam,nele)
-call zerom(psiabpcd,ngam,nele)
+call zerom(phiab,ngam,nele)
+call zerom(phiabc,ngam,nele)
+call zerom(phiabcd,ngam,nele)
+call zerom(phiabpcd,ngam,nele)
 
 do i=1,nanim
         read(1,*)ped(i,:)
 enddo
 rewind(1)
-do i=1,nmf
-    read(1,*)ped(i,:),gamma(i,:)
-enddo
+!do i=1,nmf
+!    read(1,*)ped(i,:),gamma(i,:)
+!enddo
 close(1)
 
 ! create gametic pedigree from animal pedigree
-pedgam()=0
+pedgam=0
 k=0
 do i=1,nanim
         ! paternal gamete
@@ -109,6 +109,7 @@ do i=1,nanim
         ! expand sire to two gametes corresponding to the sire
         pedgam(k,2)=anim2gam(sire,1)
         pedgam(k,3)=anim2gam(sire,2)
+        print *,pedgam(k,:)
         ! maternal gamete
         k=k+1
         pedgam(k,1)=k
@@ -117,209 +118,10 @@ do i=1,nanim
         ! expand sire to two gametes corresponding to the sire
         pedgam(k,2)=anim2gam(dam,1)
         pedgam(k,3)=anim2gam(dam,2)
-        print *,pedgam(k)
+        print *,pedgam(k,:)
 enddo
 
 
-
-if(colleau) then
-        F=0
-        if(.not.MeuwLuo) then
-                colleau=.false.
-                do i=1,nanim
-                        !if(mod(i,max((nanim/10),1))==0 ) print *,int(10*i/(nanim/10d0)),'%'
-                        F(i)=2*phi2(i,i)-1
-                enddo
-                colleau=.true.
-        else
-                call meuw(ped(:,2),ped(:,3),f)
-        endif
-        print *,'inb done'
-endif
-if(compute_geninb) then
-        call get_subset('generalized inbreeding')
-        open(unit=4,file=adjustl(trim(dum))//'_geninb',status='replace')
-        write(4,'(a)') 'i phi2 phi3 phi4 phi22'
-        do i=1,nsubset
-                ii=subset(i)
-                if(mod(i,max((nsubset/10),1))==0 ) print *,int(10*i/(nsubset/10d0)),'%'
-                bigF(1)=phi2(ii,ii)
-                bigF(2)=phi3(ii,ii,ii)
-                bigF(3)=phi4(ii,ii,ii,ii)
-                bigF(4)=phi22(ii,ii,ii,ii)
-                write(4,'(i10,1x,20f10.6)') ii,bigF
-                
-        enddo
-        print *,'geninb done'
-        close(4)
-endif
-
-if(compute_inbcovar) then
-        call get_subset('regular inbreeding and covariances')
-        open(unit=4,file=adjustl(trim(dum))//'_inbcovar',status='replace')
-        write(4,'(a)') 'i j inb covar'
-        do i=1,nsubset
-                ii=subset(i)
-                if(mod(i,max((nsubset/10),1))==0 ) print *,int(10*i/(nsubset/10d0)),'%'
-                do j=i,nsubset
-                        jj=subset(j)
-                        if(ii==jj) then
-                                val=2*phi2(ii,ii)-1
-                        else
-                                val=-99d0
-                        endif
-                        write(4,'(2i10,1x,20f10.6)') &
-                          ii,jj,val,4*(phi22(ii,ii,jj,jj)-phi2(ii,ii)*phi2(jj,jj))
-                enddo
-                
-        enddo
-        print *,'inbcovar done'
-        close(4)
-endif
-!this is the inverse of the matrix of coefficients in Karig (1981, eq.7)
-lhs=reshape( (/ &
-    0.,     0.,    0.,    1.,   - 1.,  - 1.,    1.,    0.,    0.,  &
-    4.,   - 4.,  - 4.,  - 1.,     1.,    1.,  - 1.,    4.,    0.,  &
-    0.,     0.,    0.,  - 4.,     4.,    2.,  - 2.,    0.,    0.,  & 
-  - 8.,     8.,    4.,    4.,   - 4.,  - 2.,    2.,  - 4.,    0.,  &
-    0.,     0.,    0.,  - 4.,     2.,    4.,  - 2.,    0.,    0.,  &
-  - 8.,     4.,    8.,    4.,   - 2.,  - 4.,    2.,  - 4.,    0.,  &
-    0.,     0.,    0.,    0.,     0.,    0.,  - 2.,    0.,    2.,  &
-    0.,     0.,    0.,    16.,  - 8.,  - 8.,    8.,    0.,  - 4.,  &
-    16.,  - 8.,  - 8.,  - 16.,    8.,    8.,  - 6.,    4.,    2. /),&
-    (/9,9/) )
-lhs=transpose(lhs)/4d0
-! Miguel &A
-! get identity coefficients 
-if(compute_iden) then
-        call get_subset('probabilities of identity states')
-        open(unit=4,file=adjustl(trim(dum))//'_iden',status='replace')
-        write(4,'(a)') 'i  j delta1 delta2 delta3 delta4 delta5 delta6 delta7 delta8 delta9'
-        do i=1,nsubset
-                if(mod(i,max((nsubset/10),1))==0 ) print *,int(10*i/(nsubset/10d0)),'%'
-                ii=subset(i)
-                do j=i,nsubset
-                        jj=subset(j)
-                        rhs=(/ &
-                                1d0,&
-                                2*phi2(ii,ii),&
-                                2*phi2(jj,jj),&
-                                4*phi2(ii,jj),&
-                                8*phi3(ii,ii,jj),&
-                                8*phi3(ii,jj,jj),&
-                                16*phi4(ii,ii,jj,jj),&
-                                4*phi22(ii,ii,jj,jj),&
-                                16*phi22(ii,jj,ii,jj) /)
-
-                        Delta9=matmul(lhs,rhs)
-                        write(4,'(2i10,1x,20f10.6)')ii,jj,delta9
-                enddo
-        enddo
-        close(4)
-        print *,'identities done'
-endif
-
-if(compute_dom)then
-        ! ahora calculo de coeficientes de dominancia para le matriz
-        ! de dominancia "no inbreeding" de DeBoer & Hoeschele 
-        ! esta matriz tiene las probabilidades de estados de identidad delta9 y delta12, que sumqdos
-        ! corresponden al estado condensado 7 tal como se calcula aqui
-        ! es decir, los estados son 1212 y 1221
-        call get_subset('dominance coefficients')
-        open(unit=4,file=adjustl(trim(dum))//'_dom',status='replace')
-        write(4,'(a)') 'i j dominance additive_relationship'
-        do i=1,nsubset
-                if(mod(i,max((nsubset/10),1))==0 ) print *,int(10*i/(nsubset/10d0)),'%'
-                print *,i
-                ii=subset(i)
-                do j=1,nsubset
-                    !if(mod(j,100)==0) print *,i,j
-                    jj=subset(j)
-                    val=dom(ii,jj)
-                    !val=dom_R(ii,jj)
-                    !if (val>0) then
-                        ! only non-zero values are stored
-                        ! individuals, dominance, additive relationship
-                        if (i<=j) write(4,'(2i10,1x,3g20.12)')ii,jj,val,2d0*phi2(ii,jj)
-                    !endif
-                enddo
-        enddo
-        close(4)
-        print *,'dominance finished'
-endif
-
-! vara4d
-if(compute_covar)then
-        call get_subset('covariance of coancestries')
-        open(unit=4,file=adjustl(trim(dum))//'_covar',status='replace')
-        write(4,'(a)') 'n nn i j k l cov(coan(i,j),coan(k,l)) coan(i,j) coan(k,l)'
-        k=0
-        do i=1,nsubset
-                if(mod(i,max((nsubset/10),1))==0 ) print *,int(10*i/(nsubset/10d0)),'%'
-                do ii=i,nsubset
-                        k=k+1
-                        kk=0
-                        do j=1,nsubset
-                                do jj=j,nsubset
-                                        kk=kk+1
-                                        !print *,subset(i),subset(ii),subset(j),subset(jj),iabpcd
-                                        val=phi22(subset(i),subset(ii),subset(j),subset(jj))- &
-                                                phi2(subset(i),subset(ii))*phi2(subset(j),subset(jj))
-                                        write(4,'(6i10,1x,3g20.12)')k,kk,subset(i),subset(ii),subset(j),subset(jj),&
-                                                        val,phi2(subset(i),subset(ii)),phi2(subset(j),subset(jj))
-                                enddo
-                        enddo
-                enddo
-        enddo
-        print *,'covariances finished'
-        close(4)
-endif
-
-if(compute_var)then
-        call get_subset('variance of coancestries')
-        open(unit=4,file=adjustl(trim(dum))//'_var',status='replace')
-        write(4,'(a)') 'i j var(coan(i,j)) coan(i,j)'
-        do i=1,nsubset
-                if(mod(i,max((nsubset/10),1))==0 ) print *,int(10*i/(nsubset/10d0)),'%'
-                do ii=i,nsubset
-                                val=phi22(subset(i),subset(ii),subset(i),subset(ii))- &
-                                        phi2(subset(i),subset(ii))*phi2(subset(i),subset(ii))
-                                write(4,'(2i10,1x,3g20.12)')subset(i),subset(ii),&
-                                                val,phi2(subset(i),subset(ii))
-                enddo
-        enddo
-        print *,'variances finished'
-        close(4)
-endif
-
-if(compute_vardom)then
-        call get_subset('variance of dominances')
-        open(unit=4,file=adjustl(trim(dum))//'_vardom',status='replace')
-        write(4,'(a)') 'i j var_dominance dominance'
-        do i=1,nsubset
-                if(mod(i,max((nsubset/10),1))==0 ) print *,int(10*i/(nsubset/10d0)),'%'
-                ii=subset(i)
-                do j=i,nsubset
-                        jj=subset(j)
-                        rhs=(/ &
-                                1d0,&
-                                2*phi2(ii,ii),&
-                                2*phi2(jj,jj),&
-                                4*phi2(ii,jj),&
-                                8*phi3(ii,ii,jj),&
-                                8*phi3(ii,jj,jj),&
-                                16*phi4(ii,ii,jj,jj),&
-                                4*phi22(ii,ii,jj,jj),&
-                                16*phi22(ii,jj,ii,jj) /)
-                        Delta9=matmul(lhs,rhs)
-                        val=Delta9(1)*(1-Delta9(1))+Delta9(7)*(1-Delta9(7))+2*Delta9(1)*Delta9(1)
-                        write(4,'(2i10,1x,3g20.12)')ii,jj,&
-                                                val,Delta9(1)+Delta9(7)
-                enddo
-        enddo
-        print *,'variances of dominance finished'
-        close(4)
-endif
 
 ! information
 print *,'total number of non-0 elements in phiab',phiab%filled
@@ -396,15 +198,11 @@ recursive double precision function phi2(k,l) result(s)
                 if(a==0 .and. b==0) then
                         s=0.2d0 ! this is actually gamma/2 !!!
                 else
-                    if(colleau) then
-                        s=phi2_colleau(a,b)
-                    else
                         if(a==b) then
                                 s=.5*(1+phi2(ped(a,2),ped(a,3)))
                         else
                                 s=.5*(phi2(ped(a,2),b)+phi2(ped(a,3),b))
                         endif
-                    endif
                 endif
                 val=s
                 if(s==0d0) val=-10d0
@@ -803,7 +601,7 @@ end subroutine
 integer function anim2gam(animal,origin) !origin is 1,2 (paternal, maternal)
     implicit none
     integer::animal,origin
-    ani2gam=(animal-1)*2+origin
+    anim2gam=(animal-1)*2+origin
     end function
 
  function gam2anim(gamete) result(pair) ! on output animal, pair
