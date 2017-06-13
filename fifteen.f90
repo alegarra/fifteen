@@ -44,7 +44,7 @@ integer:: i,j,k,l,ii,jj,kk,t,io,sire,dam
 integer::s1,s2,d1,d2
 real(dp),allocatable:: F(:),gamma(:,:)
 real(dp):: delta(15),val,bigF(4)
-real(dp):: lhs(9,9),rhs(9),delta9(9),delta15(15),rhs15(15)
+real(dp):: lhs(15,15),rhs(15),delta9(15),delta15(15),rhs15(15)
 real(dp),allocatable:: vara(:,:),vara4d(:,:,:,:)
 character(100):: pedfile,dum
 logical:: use_hash(4)=.true.
@@ -61,6 +61,28 @@ read *,pedfile
 
 ! use hash, output 15 states only
 
+
+lhs=reshape( (/ &
+  1.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,  0.0, &
+ -1.0,   1.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,  0.0, &
+ -1.0,   0.0,   1.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,  0.0, &
+ -1.0,   0.0,   0.0,   1.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,  0.0, &
+ -1.0,   0.0,   0.0,   0.0,   1.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,  0.0, &
+ -1.0,   0.0,   0.0,   0.0,   0.0,   1.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,  0.0, &
+  2.0,  -1.0,  -1.0,   0.0,   0.0,  -1.0,   1.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,  0.0, &
+  2.0,   0.0,   0.0,  -1.0,  -1.0,  -1.0,   0.0,   1.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,  0.0, &
+ -1.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   1.0,   0.0,   0.0,   0.0,   0.0,   0.0,  0.0, &
+  2.0,  -1.0,   0.0,  -1.0,   0.0,   0.0,   0.0,   0.0,  -1.0,   1.0,   0.0,   0.0,   0.0,   0.0,  0.0, &
+  2.0,   0.0,  -1.0,   0.0,  -1.0,   0.0,   0.0,   0.0,  -1.0,   0.0,   1.0,   0.0,   0.0,   0.0,  0.0, &
+ -1.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   1.0,   0.0,   0.0,  0.0, &
+  2.0,   0.0,  -1.0,  -1.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,  -1.0,   1.0,   0.0,  0.0, &
+  2.0,  -1.0,   0.0,   0.0,  -1.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,  -1.0,   0.0,   1.0,  0.0, &
+ -6.0,   2.0,   2.0,   2.0,   2.0,   1.0,  -1.0,  -1.0,   1.0,  -1.0,  -1.0,   1.0,  -1.0,  -1.0,  1.0 /),&
+(/15,15/) )
+
+do i=1,15
+    write(*,'(15f6.3)')lhs(i,:)
+enddo
 
 !open(unit=1,file='lopetegui.txt',status='old')
 !open(unit=1,file='mencha2.txt',status='old')
@@ -109,7 +131,7 @@ do i=1,nanim
         ! expand sire to two gametes corresponding to the sire
         pedgam(k,2)=anim2gam(sire,1)
         pedgam(k,3)=anim2gam(sire,2)
-        print *,pedgam(k,:)
+        write (*,'(3i6,a,2i6,a,2i6,a,2i6,a,3i6)') pedgam(k,:),'|',gam2anim(pedgam(k,1)),';',gam2anim(pedgam(k,2)),';',gam2anim(pedgam(k,3)),'|',ped(i,:)
         ! maternal gamete
         k=k+1
         pedgam(k,1)=k
@@ -118,8 +140,10 @@ do i=1,nanim
         ! expand sire to two gametes corresponding to the sire
         pedgam(k,2)=anim2gam(dam,1)
         pedgam(k,3)=anim2gam(dam,2)
-        print *,pedgam(k,:)
+        write (*,'(3i6,a,2i6,a,2i6,a,2i6,a,3i6)') pedgam(k,:),'|',gam2anim(pedgam(k,1)),';',gam2anim(pedgam(k,2)),';',gam2anim(pedgam(k,3)),'|',ped(i,:)
 enddo
+
+
 
 
 
@@ -467,7 +491,7 @@ function dom(a,b) result(s)
                 16*phi4(a,a,b,b),&
                 4*phi22(a,a,b,b),&
                 16*phi22(a,b,a,b) /)
-        Delta9=matmul(lhs,rhs)
+        !Delta9=matmul(lhs,rhs)
         s=Delta9(1)+Delta9(7)
 end function
 
@@ -486,7 +510,7 @@ function dom_R(a,b) result(s)
                 16*phi4(a,a,b,b),&
                 4*phi22(a,a,b,b),&
                 16*phi22(a,b,a,b) /)
-        Delta9=matmul(lhs,rhs)
+        !Delta9=matmul(lhs,rhs)
         s=Delta9(7)
 end function
 
@@ -602,14 +626,21 @@ integer function anim2gam(animal,origin) !origin is 1,2 (paternal, maternal)
     implicit none
     integer::animal,origin
     anim2gam=(animal-1)*2+origin
+    if (anim2gam<0) anim2gam=0
     end function
 
  function gam2anim(gamete) result(pair) ! on output animal, pair
+
+
+     !!! WRONG !!!
  implicit none
  integer::gamete,pair(2)
- pair(1)=gamete/2
- pair(2)=gamete-2*pair(1)
+ pair(1)=(gamete+1)/2
+ pair(2)=gamete-2*pair(1)+2
  end function
 
 end
+
+
+
 
