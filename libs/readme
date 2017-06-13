@@ -1,0 +1,2 @@
+ the problem is that x%x, stored as real(r8) stores at the same time the adresses (which are integers) and elements (which are reals). A better impl
+ ementation would separate this into two matrices of the same length, one woth adresses and the other with values

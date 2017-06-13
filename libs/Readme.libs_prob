@@ -1,0 +1,135 @@
+Module Prob
+ 
+Ignacy Misztal and Deukhwan Lee, University of Georgia
+04/29/99-04/19/2001
+
+Introduction
+============
+
+Module Prob is a collection of random number generators / probabilities / 
+truncated distributions useful for Gibbs sampling and for threshold models. The
+module uses features of Fortran 90 to simplify programnming and high-level
+optimization to reduce running time, with simplicity being as 
+important as efficiency. To understand the module fully, please read the 
+documentation on SPARSEM and on BLUPF90.
+
+Module prob uses high-quality generators from public domain package RANLIB for
+random number generators. Some low level code is from Luis Varona.
+
+
+
+Module Prob
+=============
+
+Set_seed
+--------
+
+call set_seed(n)
+n - integer
+
+Sets seed for random number generator to value n. If this subroutine is not
+called, the seed will be selected by the system. 
+
+
+
+Gen_uniform
+-----------
+
+x=gen_uniform(a,b)
+
+a,b - both real (r*) or both integers or both missing
+
+If a,b are missing, generates samples from uniform(0,1) distribution. 
+
+If a,b are real (r8), generates samples from uniform(a,b) distribution. 
+
+If a,b are integers, generates random integer between a and b. 
+
+
+
+Gen_normal
+----------
+
+x    - gen_normal(mean,var)
+mean - (r8) scalar or vector
+var  - (r8) scalar or square matrix
+x    - (r8) scalar or square matrix
+
+Generates x=N(mean,Var) when mean and var are scalars, or 
+x=MVN(mean,Var) when mean is a vector and Var is a matrix. 
+
+Arguments mean and var are optional. If they are missing, sampling is 
+from N(0,1)
+
+
+Gen_invwishart
+--------------
+
+ x=gen_invwishart(inv_q_form,df)
+ 
+inv_q_form - (r8) scalar or square matrix containing inverse of quadratic form
+df         - an integer containing degrees of freedom
+
+
+Generates samples from inverted chi square or inverted Wishart distributions.
+
+
+
+Normal
+------
+
+y=normal(x)
+
+x - real(r8) scalar
+y  - real (r8) contains density(X) for N(0,1)
+
+
+
+Normal_cdf
+----------
+
+y=normal_cdf(x)
+
+x - real (r8) scalar
+y - real (r8) cumulative distribution function for N(0,1)
+
+
+
+Normal_invcdf
+-------------
+
+y=normal_invcdf(x)
+
+x - real (r8) scalar in the range of <0,1>. 
+y - - real (r8) as in: x=normal_cdf(y)
+
+
+
+Gen_trunc_normal
+---------------------
+
+y=generate_trunc_normal(a,b,mean,var)
+y - real (r8) scalar or vector
+a,b - real (r8) lower and upper bound of random samples
+mean - real(r8) scalar or vectors of mean, optional if scalar
+var - real(r8) scalar or matricex of variances, optional if scalar
+
+If mean and var are missing, generates random samples from N(0,1) distribution 
+truncated to interval <a,b>.
+
+If mean and var are scalars, generates random samples from N(mean,var) 
+distribution truncated to interval <a,b>.
+
+If mean is a vector and var is a matrix, generates random samples from 
+MVN(mean,var) distribution with first dimension truncated to interval <a,b>.
+
+
+Other functions/subroutines
+-----------------------------
+
+New functions/subroutines are added to Module prob periodically. Please see 
+program prob.f90 for details. 
+
+
+
+ 

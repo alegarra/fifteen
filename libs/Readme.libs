@@ -1,0 +1,128 @@
+*****************************************
+* Library programs and modules 
+*   Ignacy Misztal, University of Georgia
+*   05/02/2000
+*****************************************
+
+Programs in this directory are used in application programs. Most of them are
+organized into libraries. Some programs are documented in separate 
+documents, and in some the documentation is inside the programs. To compile 
+all units under Unix, type: 
+
+        make
+
+To remove all compiled programs and libraries,for example to be able to
+recompile all the programs from scratch, type:
+        
+        make clean
+
+
+Descriptions
+=============
+
+
+Library sparsem.a
+-----------------
+Functionality:
+        Contains sparse matrix module (module sparsem) with definitions of 
+        sparse matrix structures and basic operations on them, and sparse 
+        matrix factorization, inversion and multiplication routines (module 
+        sparseop). Both are described separately. Also included is an 
+        iterative solve by preconditioned-conjugate gradient (module pcg).
+                                        
+Components:
+        kind.f90       Precision definitions (module kind)
+        sparse.f90     Main sparsem program (module sparsem)
+        sparse2.f      Helper subroutines for sparse.f90, incl. hash and sort
+        fspak90.f90    F90 interface to FSPAK + multiplication routines
+        fspak.o        Sparse matrix factorization, inversion etc. by
+                           Perez-Enciso, Misztal and Elzo  
+        fspaksub.f     Helper subroutines for fspak.f
+	sparssub.f     Low level sparse-matrix code by George and Liu
+	pcg.f90        Iterative solvers by preconditioned-conjugate gradient
+                           for sparse matrix structure (module pcg)
+	second.f       Timing function, specific to each system
+
+
+
+Library denseop.a
+-----------------
+Functionality:
+        Contains the dense matrix module (module denseop), described in a
+        separate document. Also contains module kinds, which holds definitions
+        of numerical precisions that are used by most application and 
+        library programs. The module has been written by Tomasz Strabel
+
+Components:
+        lapack90r.f90   Parts of LAPACK90 by Alan Miller
+        kind.f90        Precision definitions (module kind)
+        denseop.f90     The main body of the module
+
+
+
+Library blupsubs.a
+------------------
+Functionality:
+        Helper subroutines for mixed-model programs.
+
+Components:                       
+        blups1.f90      User interface for the BLUPF90 family of programs
+        blups2.f        Old Fortran 77 programs for splitting character lines 
+                        into tokens and combining tokens into lines; also for 
+                        determining residuals of the inverse of the parental 
+                        dominance matrix. 
+        ginv.f          Old but fast generalized inverse for symmetric 
+                        matrices
+
+
+Module model.f90
+----------------
+Functionality:
+        Contains definitions of all variables needed to describe a mixed model 
+        (module model); used by all mixed-model applications
+
+
+
+
+Library stat.a
+--------------
+Functionality:
+	Statistical and data manipulation subroutines useful for threshold model
+	and Gibbs sampling
+	
+Components:
+	prob.f90 	Subroutines/functions to generate random numbers from
+			uniform, normal, truncated normal, inverted Wishart 
+			distributions; probabilities, cdf and inverse cdf for
+			normal distribution
+	gibbs.f90	Data manipulation routines for Gibbs
+			sampling
+
+
+
+Use of libraries and modules
+============================
+
+To use a module, include it in the "use" statement in the application 
+program. Compile the aplication program with an option specifying this 
+directory as containing modules. Finally, link with the appropriate library.
+
+Example
+-------
+
+Let program abc.f90 be in directory abc and assume that the libraries, 
+already compiled, are in the directory libs.  To use modules "model" and
+"sparsem", include the following in program abc.f90
+
+   program abc
+   use model; use sparsem
+   ...
+   end program abc
+
+and compile
+
+  f90 -P../libs abc.f90 ../sparselib.a  ../libs/model.o
+ 
+The above line assumes that the compiler is called "f90" and that the include 
+option in the compiler is "-P". The compilation us usually automated by make 
+files. For examples, see Makefiles in directory blup or gibbs.

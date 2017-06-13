@@ -1,0 +1,68 @@
+ Module Gibbs
+ 
+Ignacy Misztal, University of Georgia
+04/29/99-04/19/2001
+
+Introduction
+============
+
+Module Gibbs is a collection of data manipulation subroutines useful for 
+implementing the Gibbs sampler predominantly in the BLUPF90 environment.
+To understand the module fully, please read the documentation on modules
+SPARSEM and PROB, and on BLUPF90.
+
+Subroutine link_hash was inspired by Urs Schnyder, ETH, Switzerland.
+
+
+Module Gibbs
+============
+
+
+LINK_HASH
+----------
+
+call link_hash_ija(xx,xx_ija)
+
+xx     - matrix in sparse_hashm format
+xx_ija - matrix in sparse_ija format
+
+Matrix in sparse_hashm form can be rapidly constructed but cannot
+easily be used. Matrix in sparse_ija form can easily be used but
+cannot be set up directly. Conversion from sparse_hashm to sparse_ija
+as provided in module SPARSEM is relatively slow. Subroutine link_hash
+provides a fast conversion from sparse_hashm to sparse_ija format when xx
+with the same nonzero structure needs to be converted repeatedly. When
+this routine is called the first time, a link is created that
+points to equivalent locations in xx and xx_ija. During subsequent
+calls, it is assumed that the nonzero structure of xx and xx_ija
+remains the same, and the conversion is done rapidly by using the link
+to update the numerical values only.
+
+
+Solve_iterm_block
+-----------------
+
+call solve_iterm_block(xx_ija,xy,sol,i,j,diag,op)  
+
+xx_ija - Matrix in sparse_ija format
+xy     - (r8) vector of right hand sides
+sol    - (r8) vector of solutions
+i      - integer value of first equation to solve
+j      - integer value of last equation to solve
+diag   - (r8) matrix of dimension j-i+1 x j-i+1
+op     - a character variable containing either 'solve' or "update'
+
+When op='solve', the subroutine solves a block of
+equations from i to j, and puts the diagonal part of the matrix xx_ija
+into a dense matrix diag. When op='update', the right hand side is
+updated for the current block of solutions. The "update' option should
+always follow the "solve" option or the solutions will be incorrect.
+The need for the 'update' option arises from xx_ija being half-stored.
+
+
+Other subroutines
+------------------
+
+Extra subroutines (undocumented) have been added to enable multiple-trait
+Gibbs-sampling with single-trait matrices only. See programs gibbs.f90 and
+gibbs1f90.f90 for details. 
