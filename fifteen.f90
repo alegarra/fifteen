@@ -40,7 +40,7 @@ INTEGER, PARAMETER :: dp = SELECTED_REAL_KIND(15, 307) !=real(8) con DVF
 integer:: nanim,nsubset !=20 !22 !19 !14
 integer:: nele,nmf,ngam
 integer,allocatable:: ped(:,:),subset(:),pedgam(:,:)
-integer:: i,j,k,l,ii,jj,kk,t,io,sire,dam
+integer:: i,j,k,l,ii,jj,kk,t,io,sire,dam,i1,i2,j1,j2
 integer::s1,s2,d1,d2
 real(dp),allocatable:: F(:),gamma(:,:)
 real(dp):: delta(15),val,bigF(4)
@@ -79,6 +79,7 @@ lhs=reshape( (/ &
   2.0,  -1.0,   0.0,   0.0,  -1.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,  -1.0,   0.0,   1.0,  0.0, &
  -6.0,   2.0,   2.0,   2.0,   2.0,   1.0,  -1.0,  -1.0,   1.0,  -1.0,  -1.0,   1.0,  -1.0,  -1.0,  1.0 /),&
 (/15,15/) )
+lhs=transpose(lhs)
 
 do i=1,15
     write(*,'(15f6.3)')lhs(i,:)
@@ -144,6 +145,34 @@ do i=1,nanim
 enddo
 
 
+do i=1,nanim
+    do j=i,nanim
+        !i1,i2,j1,j2
+        i1=anim2gam(i,1)
+        i2=anim2gam(i,2)
+        j1=anim2gam(j,1)
+        j2=anim2gam(j,2)
+        rhs=0
+        rhs(1)= phi4(i1,i2,j1,j2)
+        rhs(2)= phi3(i1,i2,j1)
+        rhs(3)= phi3(i1,i2,   j2)
+        rhs(4)= phi3(i1,   j1,j2)
+        rhs(5)= phi3(   i2,j1,j2)
+        rhs(6)=phi22(i1,i2,j1,j2)
+        rhs(7)= phi2(i1,i2)
+        rhs(8)= phi2(j1,j2)
+        rhs(9)=phi22(i1,j1,i2,j2)
+        rhs(10)=phi2(i1,j1)
+        rhs(11)=phi2(i2,j2)
+        rhs(12)=phi22(i1,j2,i2,j1)
+        rhs(13)=phi2(i1,j2)
+        rhs(14)=phi2(i2,j1)
+        rhs(15)=1
+        Delta15=matmul(lhs,rhs)
+        write(*,'(2i4,20f9.4)') i,j,rhs
+        write(*,'(2i4,20f9.4)') i,j,Delta15,sum(Delta15)
+    enddo
+enddo
 
 
 
@@ -159,38 +188,6 @@ print *,'total number of calls to phi22',iabpcd
 
 
 contains
-
-function phi2_colleau(k,l) result(s)
-    implicit none
-    integer(i8):: i,k,l
-    real(r8):: s,w(nanim),v(nanim)
-    v=0d0; v(k)=1d0
-    call A_times_v(w,v)
-    s=.5*w(l) !the .( is to pass from additive relationships to coancestries
-end function    
-    
-subroutine A_times_v(w,v)
-! computes w=A*v using  TDT'v
-integer :: i
-real(r8) :: w(:),v(:),tmp,di
-real(r8) ::q(size(w))
-q=0
-
-do i=nanim,1,-1
-   q(i)=q(i)+v(i)
-   if (ped(i,2)>0) q(ped(i,2)) = q(ped(i,2))+q(i)*0.5
-   if (ped(i,3)>0) q(ped(i,3)) = q(ped(i,3))+q(i)*0.5
-   !q(ped(i,:)) = q(ped(i,:))+q(i)*0.5
-enddo
-do i=1,nanim
-   di=(count(ped(i,2:3)==0)+2)/4d0 - .25*(f(ped(i,2))+f(ped(i,3)))
-   tmp = 0
-   if (ped(i,2)>0) tmp = tmp +w(ped(i,2))
-   if (ped(i,3)>0) tmp = tmp +w(ped(i,3))
-   w(i)=.5*tmp
-   w(i)= w(i) + di*q(i)
-enddo
-end subroutine
 
 
 recursive double precision function phi2(k,l) result(s)
@@ -220,12 +217,13 @@ recursive double precision function phi2(k,l) result(s)
                 !if(a*b==0) then
                 !        s=0d0
                 if(a==0 .and. b==0) then
-                        s=0.2d0 ! this is actually gamma/2 !!!
+                        s=0.0d0 ! this is actually gamma/2 !!!
                 else
                         if(a==b) then
-                                s=.5*(1+phi2(ped(a,2),ped(a,3)))
+                                s=1.d0
+                                !s=.5*(1+phi2(pedgam(a,2),pedgam(a,3)))
                         else
-                                s=.5*(phi2(ped(a,2),b)+phi2(ped(a,3),b))
+                                s=.5*(phi2(pedgam(a,2),b)+phi2(pedgam(a,3),b))
                         endif
                 endif
                 val=s
@@ -249,7 +247,7 @@ recursive double precision function phi3(j,k,l) result(s)
         !print *,'temp',temp
         a=temp(1); b=temp(2); c=temp(3)
         ! already stored?
-        pos1=(a+1)*nanim+b+1
+        pos1=(a+1)*ngam+b+1
         pos2=c+1
         call getmAsp(val,pos1,pos2,phiabc,use_hash(2))
         s=val
@@ -265,13 +263,15 @@ recursive double precision function phi3(j,k,l) result(s)
                         s=0d0
                 ! all equal aaa
                 else if(all(a==(/b,c/))) then
-                        s=.25*(1+3*phi2(ped(a,2),ped(a,3)))
+                        s=1d0
+                        !s=.25*(1+3*phi2(pedgam(a,2),pedgam(a,3)))
                 !aac
                 else if(a==b) then
-                        s=.5*(phi2(a,c)+phi3(ped(a,2),ped(a,3),c))
+                        s=phi2(a,c)
+                        !s=.5*(phi2(a,c)+phi3(pedgam(a,2),pedgam(a,3),c))
                 else
                 !abc
-                        s=.5*(phi3(ped(a,2),b,c)+phi3(ped(a,3),b,c))
+                        s=.5*(phi3(pedgam(a,2),b,c)+phi3(pedgam(a,3),b,c))
                 endif
                 val=s
                 if(s==0d0) val=-10d0
@@ -291,8 +291,8 @@ recursive double precision function phi4(j,k,l,m) result(s)
         !print *,'temp',temp
         a=temp(1); b=temp(2); c=temp(3); d=temp(4)
         ! already stored?
-        pos1=(a+1)*nanim+b+1
-        pos2=(c+1)*nanim+d+1
+        pos1=(a+1)*ngam+b+1
+        pos2=(c+1)*ngam+d+1
         call getmAsp(val,pos1,pos2,phiabcd,use_hash(3))
         s=val
         ! how to differentiate an empty location from true:
@@ -307,16 +307,19 @@ recursive double precision function phi4(j,k,l,m) result(s)
                         s=0d0
                 ! all equal aaaa
                 else if(all(a==(/b,c,d/))) then
-                        s=.125*(1+7*phi2(ped(a,2),ped(a,3)))
+                        s=1d0
+                        !s=.125*(1+7*phi2(pedgam(a,2),pedgam(a,3)))
                 !aaad
                 else if(all(a==(/b,c/)  )) then
-                        s=.25*(phi2(a,d)+3*phi3(ped(a,2),ped(a,3),d))
+                        s=phi2(a,d)
+                        !s=.25*(phi2(a,d)+3*phi3(pedgam(a,2),pedgam(a,3),d))
                 !aacd
                 else if(all(a==(/b/)    )) then
-                        s=.5*(phi3(a,c,d)+phi4(ped(a,2),ped(a,3),c,d))
+                        s=phi3(a,c,d)
+                        !s=.5*(phi3(a,c,d)+phi4(pedgam(a,2),pedgam(a,3),c,d))
                 else
                 !abcd
-                        s=.5*(phi4(ped(a,2),b,c,d)+phi4(ped(a,3),b,c,d))
+                        s=.5*(phi4(pedgam(a,2),b,c,d)+phi4(pedgam(a,3),b,c,d))
                 endif
                 val=s
                 if(s==0d0) val=-10d0
@@ -338,8 +341,8 @@ recursive double precision function phi22(j,k,l,m) result(s)
         a=j; b=k; c=l; d=m
         if(a<b) call swap(a,b)
         if(c<d) call swap(c,d)
-        pos1=(a+1)*nanim+b+1
-        pos2=(c+1)*nanim+d+1
+        pos1=(a+1)*ngam+b+1
+        pos2=(c+1)*ngam+d+1
         call getmAsp(val,pos1,pos2,phiabpcd,use_hash(4))
         s=val
         ! how to differentiate an empty location from true:
@@ -358,25 +361,29 @@ recursive double precision function phi22(j,k,l,m) result(s)
         else 
                 ! all equal aa,aa
                 if(all(a==(/b,c,d/))) then
-                        s=.25*(1+3*phi2(ped(a,2),ped(a,3)))
+                        s=1d0
+                        !s=.25*(1+3*phi2(pedgam(a,2),pedgam(a,3)))
                 else
                         if(a<b) call swap(a,b)
                         if(c<d) call swap(c,d)
                         if((a==c).and.(b<d)) call swap(b,d)
                         if(all(a==(/b,c/)  )) then
-                                s=.5*(phi2(a,d)+phi3(ped(a,2),ped(a,3),d))
+                                s=phi2(a,d)
+                                !s=.5*(phi2(a,d)+phi3(pedgam(a,2),pedgam(a,3),d))
                         else
                                 if(a<c) then
                                         call swap(a,c); call swap(b,d)
                                 endif
                                 if(a==b) then
-                                        s=.5*(phi2(c,d)+phi22(ped(a,2),ped(a,3),c,d))
+                                        s=phi2(c,d)
+                                        !s=.5*(phi2(c,d)+phi22(pedgam(a,2),pedgam(a,3),c,d))
                                 else
                                         if(a==c) then
-                                                s=.25*(2*phi3(a,b,d)+phi22(ped(a,2),b,ped(a,3),d) &
-                                                        +phi22(ped(a,3),b,ped(a,2),d))
+                                                s=phi3(a,b,d)
+                                                !s=.25*(2*phi3(a,b,d)+phi22(pedgam(a,2),b,pedgam(a,3),d) &
+                                                !        +phi22(pedgam(a,3),b,pedgam(a,2),d))
                                         else
-                                                s=.5*(phi22(ped(a,2),b,c,d)+phi22(ped(a,3),b,c,d))
+                                                s=.5*(phi22(pedgam(a,2),b,c,d)+phi22(pedgam(a,3),b,c,d))
                                         endif
                                 endif
                         endif
@@ -388,8 +395,8 @@ recursive double precision function phi22(j,k,l,m) result(s)
         a=j; b=k; c=l; d=m
         if(a<b) call swap(a,b)
         if(c<d) call swap(c,d)
-        pos1=(a+1)*nanim+b+1
-        pos2=(c+1)*nanim+d+1
+        pos1=(a+1)*ngam+b+1
+        pos2=(c+1)*ngam+d+1
         call addmAsp(val,pos1,pos2,phiabpcd,use_hash(4))
 end function
 
@@ -474,6 +481,7 @@ do
         if(.not.changed) exit
 enddo
 end function
+
 
 
 function dom(a,b) result(s)
@@ -630,13 +638,10 @@ integer function anim2gam(animal,origin) !origin is 1,2 (paternal, maternal)
     end function
 
  function gam2anim(gamete) result(pair) ! on output animal, pair
-
-
-     !!! WRONG !!!
  implicit none
  integer::gamete,pair(2)
- pair(1)=(gamete+1)/2
- pair(2)=gamete-2*pair(1)+2
+ pair(1)=gamete/2+mod(gamete,2) 
+ pair(2)=gamete-2*(pair(1)-1)
  end function
 
 end
