@@ -32,6 +32,8 @@
 ! psi functions from Garcia-Cortes 2015
 ! modified to compute probabilities of being .not. IBD (i.e. heterogeneous) 6 jun 2017
 
+! TO DO: think how to include metafounders so far this is done including implictely 0.1 !!!
+
 
 program vrr
 use kinds; use sparsem
@@ -144,7 +146,8 @@ do i=1,nanim
         write (*,'(3i6,a,2i6,a,2i6,a,2i6,a,3i6)') pedgam(k,:),'|',gam2anim(pedgam(k,1)),';',gam2anim(pedgam(k,2)),';',gam2anim(pedgam(k,3)),'|',ped(i,:)
 enddo
 
-
+open(2,file='Dh.out',status='replace')
+write(2,*) 'i j D'
 do i=1,nanim
     do j=i,nanim
         !i1,i2,j1,j2
@@ -169,8 +172,9 @@ do i=1,nanim
         rhs(14)=phi2(i2,j1)
         rhs(15)=1
         Delta15=matmul(lhs,rhs)
-        write(*,'(2i4,20f9.4)') i,j,rhs
-        write(*,'(2i4,20f9.4)') i,j,Delta15,sum(Delta15)
+        !write(*,'(2i4,20f9.5)') i,j,rhs
+        write(*,'(2i4,20f9.5)') i,j,Delta15,sum(Delta15)
+        write(2,*)i,j,1+phi22(i1,i2,j1,j2)-phi2(i1,i2)-phi2(j1,j2)!(the same),sum(Delta15(9:15))
     enddo
 enddo
 
@@ -217,7 +221,7 @@ recursive double precision function phi2(k,l) result(s)
                 !if(a*b==0) then
                 !        s=0d0
                 if(a==0 .and. b==0) then
-                        s=0.0d0 ! this is actually gamma/2 !!!
+                        s=0.1d0 ! this is actually gamma/2 !!!
                 else
                         if(a==b) then
                                 s=1.d0
@@ -260,7 +264,7 @@ recursive double precision function phi3(j,k,l) result(s)
                 !return ! leave the subroutine
         else
                 if(a*b*c==0) then
-                        s=0d0
+                        s=0.1d0
                 ! all equal aaa
                 else if(all(a==(/b,c/))) then
                         s=1d0
@@ -304,7 +308,7 @@ recursive double precision function phi4(j,k,l,m) result(s)
                 !return ! leave the subroutine
         else
                 if(a*b*c*d==0) then
-                        s=0d0
+                        s=0.1d0
                 ! all equal aaaa
                 else if(all(a==(/b,c,d/))) then
                         s=1d0
@@ -357,7 +361,7 @@ recursive double precision function phi22(j,k,l,m) result(s)
         ! if it is absent
         a=j; b=k; c=l; d=m
         if((a*b==0).and.(c*d==0)) then
-                s=0d0
+                s=0.1d0
         else 
                 ! all equal aa,aa
                 if(all(a==(/b,c,d/))) then
@@ -484,115 +488,6 @@ end function
 
 
 
-function dom(a,b) result(s)
-        implicit none
-        integer(i8)::a,b
-        real(dp):: s,rhs(9),Delta9(9)
-        !lhs is in the main program
-        rhs=(/ &
-                1d0,&
-                2*phi2(a,a),&
-                2*phi2(b,b),&
-                4*phi2(a,b),&
-                8*phi3(a,a,b),&
-                8*phi3(a,b,b),&
-                16*phi4(a,a,b,b),&
-                4*phi22(a,a,b,b),&
-                16*phi22(a,b,a,b) /)
-        !Delta9=matmul(lhs,rhs)
-        s=Delta9(1)+Delta9(7)
-end function
-
-function dom_R(a,b) result(s)
-        implicit none
-        integer(i8)::a,b
-        real(dp):: s,rhs(9),Delta9(9)
-        !lhs is in the main program
-        rhs=(/ &
-                1d0,&
-                2*phi2(a,a),&
-                2*phi2(b,b),&
-                4*phi2(a,b),&
-                8*phi3(a,a,b),&
-                8*phi3(a,b,b),&
-                16*phi4(a,a,b,b),&
-                4*phi22(a,a,b,b),&
-                16*phi22(a,b,a,b) /)
-        !Delta9=matmul(lhs,rhs)
-        s=Delta9(7)
-end function
-
-
-subroutine meuw(s1,d1,f) 
-   !  Meuwissen & Luo
-   implicit none
-   integer(i8),intent(in):: s1(:),d1(:)
-   integer(i8) :: ss(size(s1)),dd(size(s1))
-   real(dp):: f(0:)
-   integer(i8), allocatable:: point(:)
-   real(r8), allocatable:: l(:),d(:)
-   integer(i8) :: is,id,i,j,k,n,ks,kd
-   real(r8) :: r,fi
-   real :: t1
-
-   print*,'Calculating Inbreeding by M&L function'
-   t1=seconds()
-   ss=s1; dd=d1
-   n=size(ss)
-   allocate(point(n),l(n),d(n))
-   point=0;l=0;d=0
-   f(0)=-1
-   do i=1,n
-      if(n>10 .and. mod(i,int(n/10))==0) &
-        write(*,*) ' at',i,' animals'
-      is=ss(i); id=dd(i)
-      ss(i)=max(is,id)
-      dd(i)=min(is,id)
-      d(i)=.5-.25*(f(is)+f(id))
-      if (is==0 .or. id==0) then
-         f(i)=0
-         cycle
-      endif
-      fi=-1
-      l(i)=1.0
-      j=i
-      do while (j/=0)
-         k=j
-         r=0.5*l(k)
-         ks=ss(k)
-         kd=dd(k)
-         if (ks>0) then
-            do while(point(k)>ks)
-               k=point(k)
-            enddo
-            l(ks)=l(ks)+r
-            if (ks/=point(k))then
-               point(ks)=point(k)
-               point(k)=ks
-            endif
-            if (kd>0)then
-               do while (point(k)>kd)
-                  k=point(k)
-               enddo
-               l(kd)=l(kd)+r
-               if (kd/=point(k)) then
-                  point(kd)=point(k)
-                  point(k)=kd
-               endif
-            endif
-         endif
-
-         fi=fi+l(j)*l(j)*d(j)
-         l(j)=0
-         k=j
-         j=point(j)
-         point(k)=0
-      enddo
-      f(i)=fi
-   enddo
-   f(0)=0
-   print*,'   Calculating Inbreeding by M&L, elapsed time',seconds()-t1
-end subroutine
 
 
 
